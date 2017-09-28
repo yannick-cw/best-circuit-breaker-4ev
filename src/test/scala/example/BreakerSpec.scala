@@ -13,7 +13,7 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
 
   "The breaker" should "return the async result if it succeeds" in {
     val expectedResult = "is good"
-    val op             = Future.successful(expectedResult)
+    val op = Future.successful(expectedResult)
     defaultBreaker.protect(op).map(_ shouldBe expectedResult)
   }
 
@@ -27,8 +27,9 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
     val breaker = defaultBreaker
 
     for {
-      _         <- breaker.protect(failingOp).failed
-      assertion <- recoverToSucceededIf[FailedFastException](breaker.protect(failingOp))
+      _ <- breaker.protect(failingOp).failed
+      assertion <- recoverToSucceededIf[FailedFastException](
+        breaker.protect(failingOp))
     } yield assertion
   }
 
@@ -51,7 +52,7 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
   }
 
   it should "open circuit breaker after configured failures per time" in {
-    val breaker = Breaker(3, 200.millis)
+    val breaker = Breaker(2, 200.millis)
 
     var counter = 0
 
