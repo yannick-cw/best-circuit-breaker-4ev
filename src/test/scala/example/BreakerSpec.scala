@@ -9,11 +9,11 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
 
   case class TestException(msg: String) extends Exception(msg)
 
-  def defaultBreaker = Breaker(0, 1.second)
+  def defaultBreaker = Breaker(0, 1.second, 1.second)
 
   "The breaker" should "return the async result if it succeeds" in {
     val expectedResult = "is good"
-    val op = Future.successful(expectedResult)
+    val op             = Future.successful(expectedResult)
     defaultBreaker.protect(op).map(_ shouldBe expectedResult)
   }
 
@@ -27,9 +27,8 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
     val breaker = defaultBreaker
 
     for {
-      _ <- breaker.protect(failingOp).failed
-      assertion <- recoverToSucceededIf[FailedFastException](
-        breaker.protect(failingOp))
+      _         <- breaker.protect(failingOp).failed
+      assertion <- recoverToSucceededIf[FailedFastException](breaker.protect(failingOp))
     } yield assertion
   }
 
@@ -52,7 +51,7 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
   }
 
   it should "open circuit breaker after configured failures per time" in {
-    val breaker = Breaker(2, 200.millis)
+    val breaker = Breaker(2, 200.millis, 200.millis)
 
     var counter = 0
 
@@ -72,7 +71,7 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
   }
 
   it should "not open the circuit breaker if we exceed the allowed failures but the time between is long enough" in {
-    val breaker = Breaker(2, 200.millis)
+    val breaker = Breaker(3, 200.millis, 200.millis)
 
     var counter = 0
 
@@ -94,6 +93,30 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
       _ <- breaker.protect(op).failed
     } yield {
       counter shouldBe 4
+    }
+  }
+
+  it should "keep the circuit breaker open for the given protectionTime" in {
+    val breaker = Breaker(0, 10.millis, 100.millis)
+
+    var counter = 0
+
+    def op = Future {
+      counter += 1
+      throw TestException("testfailure")
+    }
+
+    def callProtectDelayed = {
+      val r = breaker.protect(op).failed
+      Thread.sleep(20)
+      r
+    }
+
+    for {
+      _ <- callProtectDelayed
+      _ <- breaker.protect(op).failed
+    } yield {
+      counter shouldBe 1
     }
   }
 }
