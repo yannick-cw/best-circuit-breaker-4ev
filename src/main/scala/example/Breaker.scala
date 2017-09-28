@@ -2,21 +2,23 @@ package example
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class FailedFastException()
-    extends RuntimeException(
-      "Failed fast because circuit breaker is in open state")
+case class FailedFastException() extends RuntimeException("Failed fast because circuit breaker is in open state")
 
 class Breaker {
 
-  @volatile private var isFailed = false
+  private var isFailed = false
 
   def protect[A](op: => Future[A])(implicit ec: ExecutionContext): Future[A] = {
     if (!isFailed) {
-      val result = op
-      result.failed.foreach(_ => {
+      val setFail = (t: Throwable) => {
         isFailed = true
-      })
-      result
+        t
+      }
+      op.transform(identity, setFail)
     } else Future.failed(FailedFastException())
   }
+}
+
+object Breaker {
+  def apply(): Breaker = new Breaker()
 }

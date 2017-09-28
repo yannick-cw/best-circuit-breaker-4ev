@@ -10,37 +10,34 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
 
   "The breaker" should "return the async result if it succeeds" in {
     val expectedResult = "is good"
-    val op = Future.successful(expectedResult)
-    new Breaker().protect(op).map(_ shouldBe expectedResult)
+    val op             = Future.successful(expectedResult)
+    Breaker().protect(op).map(_ shouldBe expectedResult)
   }
 
   val failingOp = Future.failed(TestException("testfailure"))
 
   it should "return the failed async result if it fails" in {
-    recoverToSucceededIf[TestException](new Breaker().protect(failingOp))
+    recoverToSucceededIf[TestException](Breaker().protect(failingOp))
   }
 
   it should "return a failed Future with an FailedFastException when already one operation failed" in {
-    val breaker = new Breaker()
+    val breaker = Breaker()
 
     for {
-      _ <- breaker.protect(failingOp).failed
-      assertion <- recoverToSucceededIf[FailedFastException](
-        breaker.protect(failingOp))
+      _         <- breaker.protect(failingOp).failed
+      assertion <- recoverToSucceededIf[FailedFastException](breaker.protect(failingOp))
     } yield assertion
   }
 
   it should "not call the operation a second time when already one operation failed" in {
     var counter = 0
 
-    def op = {
-      Future {
-        counter += 1
-        throw TestException("testfailure")
-      }
+    def op = Future {
+      counter += 1
+      throw TestException("testfailure")
     }
 
-    val breaker = new Breaker()
+    val breaker = Breaker()
 
     for {
       _ <- breaker.protect(op).failed
