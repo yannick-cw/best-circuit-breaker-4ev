@@ -70,4 +70,30 @@ class BreakerSpec extends AsyncFlatSpec with Matchers {
       counter shouldBe 3
     }
   }
+
+  it should "not open the circuit breaker if we exceed the allowed failures but the time between is long enough" in {
+    val breaker = Breaker(2, 200.millis)
+
+    var counter = 0
+
+    def op = Future {
+      counter += 1
+      throw TestException("testfailure")
+    }
+
+    def callProtectDelayed = {
+      val r = breaker.protect(op).failed
+      Thread.sleep(70)
+      r
+    }
+
+    for {
+      _ <- callProtectDelayed
+      _ <- callProtectDelayed
+      _ <- callProtectDelayed
+      _ <- breaker.protect(op).failed
+    } yield {
+      counter shouldBe 4
+    }
+  }
 }
