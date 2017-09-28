@@ -1,10 +1,11 @@
 package example
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 case class FailedFastException() extends RuntimeException("Failed fast because circuit breaker is in open state")
 
-class Breaker {
+class Breaker(allowedFailure: Int, perTime: FiniteDuration) {
 
   private var isFailed = false
 
@@ -20,5 +21,5 @@ class Breaker {
 }
 
 object Breaker {
-  def apply(): Breaker = new Breaker()
+  def apply(allowedFailure: Int, perTime: FiniteDuration): Breaker = new Breaker(allowedFailure, perTime)
 }
